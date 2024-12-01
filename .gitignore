@@ -1,0 +1,28 @@
+venv
+.idx
+__pycache__
+__pycache__/
+*.py[cod]
+
+# C extensions
+*.so
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.tox/
+.coverage
+
+# VSCode
+.vscode/
+
+# Other
+.env
+*.log
+*.pyc
+*.tmp
+*.bak
+*.swp
+*~
+*.db
