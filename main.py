@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from schema.db_routes import db_routes
 from db_operations.routes import op_routes
@@ -17,6 +17,16 @@ app.register_blueprint(docs_routes, url_prefix="/media")
 def hello_world():
     name = os.environ.get("NAME", "World")
     return f"Hello {name}!"
+
+@app.route('/routes', methods=['GET'])
+def list_routes():
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            "methods": list(rule.methods),
+            "rule": rule.rule
+        })
+    return jsonify(routes)
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 3000)))

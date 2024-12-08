@@ -27,11 +27,27 @@ def create_table(db_name, table_name, columns):
     if not os.path.exists(db_path):
         return {"error": f"Database {db_name} does not exist"}, 404
 
+    # Ensure the 'id' column exists and is primary key with auto-increment
+    id_column = {"name": "id", "type": "INTEGER", "primary_key": True, "autoincrement": True}
+    id_present = any(col['name'] == "id" for col in columns)
+
+    if id_present:
+        for col in columns:
+            if col['name'] == "id":
+                col.update(id_column)
+    else:
+        columns.insert(0, id_column)
+
+    # Create column definitions
     column_definitions = ", ".join(
-        [f"{col['name']} {col['type']}" + (" PRIMARY KEY" if col.get("primary_key") else "") for col in columns]
+        [f"{col['name']} {col['type']}" +
+         (" PRIMARY KEY AUTOINCREMENT" if col.get("primary_key") and col.get("autoincrement") else
+          " PRIMARY KEY" if col.get("primary_key") else "")
+         for col in columns]
     )
     sql_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({column_definitions})"
 
+    # Execute the SQL query
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(sql_query)
@@ -261,54 +277,5 @@ def truncate_table(db_name, table_name):
         conn.commit()
         conn.close()
         return {"message": f"Table {table_name} truncated in database {db_name}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-def table_exists(db_name, table_name):
-    try:
-        db_path = os.path.join(DB_FOLDER, db_name)
-        
-        # Check if the database file exists
-        if not os.path.exists(db_path):
-            return {"error": f"Database {db_name} does not exist."}
-        
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Print out to debug the table name and query
-        print(f"Checking if table {table_name} exists in database {db_name}...")
-
-        # Use parameterized query to prevent SQL injection
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
-        table = cursor.fetchone()
-        
-        conn.close()
-
-        if table:
-            return {"message": f"Table {table_name} exists in database {db_name}"}
-        else:
-            return {"error": f"Table {table_name} does not exist in database {db_name}"}
-    except sqlite3.Error as e:
-        return {"error": str(e)}
-
-def check_integrity(db_name):
-    try:
-        conn = sqlite3.connect(f"{DB_FOLDER}/{db_name}")
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()
-        conn.close()
-        return result[0] == "ok"
-    except Exception as e:
-        return {"error": str(e)}
-
-def get_table_constraints(db_name, table_name):
-    try:
-        conn = sqlite3.connect(f"{DB_FOLDER}/{db_name}")
-        cursor = conn.cursor()
-        cursor.execute(f"PRAGMA foreign_key_list({table_name})")
-        constraints = cursor.fetchall()
-        conn.close()
-        return constraints
     except Exception as e:
         return {"error": str(e)}

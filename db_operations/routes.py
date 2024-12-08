@@ -7,7 +7,9 @@ from db_operations.utils import (
     insert_data,
     update_data,
     delete_data,
-    parse_where_conditions
+    parse_where_conditions, 
+    dynamic_insert,
+    dynamic_update
 )
 import  os
 op_routes = Blueprint("op_routes", __name__)
@@ -74,10 +76,9 @@ def table_operations(db_name, table_name):
                 message (str): A message describing the status of the request.
                 data (list): The deleted records.
     """
-    if not table_exists(db_name, table_name):
-        return jsonify({"status": "ERROR", "message": f"Table {table_name} does not exist in database {db_name}"}), 400
-
     if request.method == "GET":
+        if not table_exists(db_name, table_name):
+            return jsonify({"status": "ERROR", "message": f"Table {table_name} does not exist in database {db_name}"}), 400
         try:
             limit = int(request.args.get("limit", 10))
             start = int(request.args.get("start", 0))
@@ -97,7 +98,7 @@ def table_operations(db_name, table_name):
             if not data:
                 return jsonify({"status": "ERROR", "message": "Data is required for insertion"}), 400
 
-            result = insert_data(db_name, table_name, data)
+            result = dynamic_insert(db_name, table_name, data)
             
             # Check if result contains an error message
             if "error" in result:
@@ -118,7 +119,7 @@ def table_operations(db_name, table_name):
             where_conditions = request.get_json().get("where")
             if not update_values or not where_conditions:
                 return jsonify({"status": "ERROR", "message": "Both 'update' and 'where' conditions are required"}), 400
-            result = update_data(db_name, table_name, update_values, where_conditions)
+            result = dynamic_update(db_name, table_name, update_values, where_conditions)
             return jsonify({"status": "SUCCESS", "message": "Data Updated Successfully", "data": result}), 200
         except Exception as e:
             return jsonify({"status": "ERROR", "message": str(e)}), 400

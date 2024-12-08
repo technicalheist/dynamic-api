@@ -1,6 +1,6 @@
 import sqlite3
 from flask import jsonify
-
+from schema.db_utils import create_table, alter_table_add_column
 DB_FOLDER = "databases"
 
 # Helper function to execute a query and return results
@@ -131,3 +131,50 @@ def fetch_data(db_name, table_name, limit=10, start=0, order_by="id", order="ASC
 
     except sqlite3.Error as e:
         return {"error": str(e)}
+
+
+def dynamic_insert(db_name, table_name, data):
+    if isinstance(data, dict):
+        data = [data]
+    if not table_exists(db_name, table_name):
+        columns = [{"name": key, "type": "TEXT"} for key in data[0].keys()]
+        create_table(db_name, table_name, columns)
+    
+    for row in data:
+        existing_columns = set(row.keys())
+        table_columns_query = f"PRAGMA table_info({table_name})"
+        table_columns = execute_query(db_name, table_columns_query, fetch=True)
+        table_column_names = {col[1] for col in table_columns}
+        missing_columns = existing_columns - table_column_names
+        for col in missing_columns:
+            alter_table_add_column(db_name, table_name, {"name": col, "type": "TEXT"})
+    
+    for row in data:
+        if "id" in row:
+            del row["id"]
+        columns = ', '.join(row.keys())
+        placeholders = ', '.join(['?'] * len(row))
+        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
+        execute_query(db_name, query, tuple(row.values()))
+    
+    return {"message": "Records inserted successfully"}
+
+def dynamic_update(db_name, table_name, update_values, where_conditions):
+    if not table_exists(db_name, table_name):
+        return {"error": f"Table {table_name} does not exist in database {db_name}"}, 404
+
+    existing_columns = set(update_values.keys())
+    table_columns_query = f"PRAGMA table_info({table_name})"
+    table_columns = execute_query(db_name, table_columns_query, fetch=True)
+    table_column_names = {col[1] for col in table_columns}
+    missing_columns = existing_columns - table_column_names
+    for col in missing_columns:
+        alter_table_add_column(db_name, table_name, {"name": col, "type": "TEXT"})
+
+    set_clause = ', '.join([f"{key} = ?" for key in update_values.keys()])
+    where_clause = ' AND '.join([f"{key} = ?" for key in where_conditions.keys()])
+    query = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
+    params = tuple(update_values.values()) + tuple(where_conditions.values())
+    execute_query(db_name, query, params)
+    
+    return {"message": "Record updated successfully"}
