@@ -5,4 +5,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 5000
 ENV FLASK_ENV=production
-CMD ["sh", "devserver.sh"]
+CMD ["python", "main.py"]
